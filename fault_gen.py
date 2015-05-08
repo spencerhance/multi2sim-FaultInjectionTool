@@ -134,7 +134,7 @@ print benchlist
 for bench in benchlist:
     if CheckBenchName(bench) == False:
         pass
-    faults_dir = faults_directory + '/' + bench
+    faults_dir = faults_directory + '/' + bench + '_faults'
     if not os.path.exists(faults_dir):
         os.mkdir(faults_dir)
     print "Benchmark:", bench, " - Num of faults: ", num_faults, " - fault dir: " , faults_dir, "fault_type: ", fault_type
