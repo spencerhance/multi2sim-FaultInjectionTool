@@ -28,7 +28,7 @@ bench_list=('BinarySearch',
             'URNG')
 
 def OptionParsing():
-    usage = "usage: %prog [options] <fault_type> <num_faults>"
+    usage = "usage: %prog [options] <fault_type> <num_faults> <max_cycles>"
     parser = OptionParser(usage=usage)
     parser.add_option("-b", "--bench-name", dest="benchmark",
                       help="Benchmark to generate faults for", metavar="BENCHMARK_NAME")
@@ -55,17 +55,20 @@ def OptionParsing():
         faults_dir = os.getcwd()
 
     # Get number of faults
-    if len(args) != 2:
+    if len(args) != 3:
         parser.error("Expecting number of faults and falut types as arguments")
     elif args[0] not in ('reg','mem','ams'):
         parser.error(args[0] + " is not an acceptable fault type")
     elif IsNumber(args[1]) is False:
         parser.error(args[1] + " is not a number")
+    elif IsNumber(args[2]) is False:
+        parser.error(args[2] + " is not a number")
     else:
         fault_type=args[0]
         num_faults=int(args[1])
+        cycle_max=int(args[2])
 
-    return benchmark, fault_type, num_faults, faults_dir
+    return benchmark, fault_type, num_faults, cycle_max, faults_dir
 
 """
 This function checks if the string can be interpreted as a number
@@ -120,12 +123,12 @@ def GenFaults(fault_num, cycle_max, fault_type):
         str_error = 'Unknown fault_type: ' + fault_type
         print str_error
         sys.exit(1)
+
 """
 Main Function
 """
 
-
-bench,fault_type, num_faults,faults_directory = OptionParsing()
+bench,fault_type, num_faults,cycle_max, faults_directory = OptionParsing()
 if bench == 'all':
     benchlist = bench_list
 else:
@@ -141,31 +144,31 @@ for bench in benchlist:
     fault_num = 1
     while fault_num <= num_faults:
         if bench == 'MatrixMultiplication':
-            GenFaults(fault_num, 1240173, fault_type)
+            GenFaults(fault_num, cycle_max, fault_type)
         elif bench == 'MatrixTranspose':
-            GenFaults(fault_num, 21452807, fault_type)
+            GenFaults(fault_num, cycle_max, fault_type)
         elif bench == 'DwtHaar1D':
-            GenFaults(fault_num, 229577, fault_type)
+            GenFaults(fault_num, cycle_max, fault_type)
         elif bench == 'ScanLargeArrays':
-            GenFaults(fault_num, 7482865, fault_type)
+            GenFaults(fault_num, cycle_max, fault_type)
         elif bench == 'BitonicSort':
-            GenFaults(fault_num, 130746167, fault_type)
+            GenFaults(fault_num, cycle_max, fault_type)
         elif bench == 'DCT':
-            GenFaults(fault_num, 4007505, fault_type)
+            GenFaults(fault_num, cycle_max, fault_type)
         elif bench == 'PrefixSum':
-            GenFaults(fault_num, 21957, fault_type)
+            GenFaults(fault_num, cycle_max, fault_type)
         elif bench == 'FastWalshTransform':
-            GenFaults(fault_num, 6835898, fault_type)
+            GenFaults(fault_num, cycle_max, fault_type)
         elif bench == 'Histogram':
-            GenFaults(fault_num, 806711, fault_type)
+            GenFaults(fault_num, cycle_max, fault_type)
         elif bench == 'BinarySearch':
-            GenFaults(fault_num, 121379, fault_type)
+            GenFaults(fault_num, cycle_max, fault_type)
         elif bench == 'Reduction':
-            GenFaults(fault_num, 5688353, fault_type)
+            GenFaults(fault_num, cycle_max, fault_type)
         elif bench == 'RadixSort':
-            GenFaults(fault_num, 1782844, fault_type)
+            GenFaults(fault_num, cycle_max, fault_type)
         elif bench == 'URNG':
-            GenFaults(fault_num, 19416717, fault_type)
+            GenFaults(fault_num, cycle_max, fault_type)
 #    elif bench == 'BinomialOption':
 #        GenFaults(fault_num, , fault_type)
 	fault_num += 1

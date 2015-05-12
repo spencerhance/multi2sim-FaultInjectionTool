@@ -42,14 +42,17 @@ if [ $1 == "-h" ];
 fi
 
 
-#Checking each input option
-ssh_status=$(ssh -o BatchMode=yes -o ConnectTimeout=5 "$1" echo ok 2>&1)
-#NOT WORKING 100% YET
+read -p "Please enter the port number of your ssh server\
+  [22]" ssh_port
+while [[ -z "$ssh_port" ]];
+  do
+      ssh_port=22
+done
+
+ssh_status=$(ssh -o BatchMode=yes -o ConnectTimeout=5 "$1" -p "$ssh_port" echo ok)
 if [ $ssh_status == "ok" ];
   then
       ssh_server=$1
-  else
-      echo "ERROR: invalid ssh server" >&2;
 fi
 
 if [[ " ${bench_list[@]} " =~ " $2 " ]];
@@ -76,73 +79,115 @@ if [[ $4 =~ ^[0-9]+$ ]];
       exit 1
 fi
 
+
 #Read <benchmark_dir> <m2s_dir> and <benchmark_args>
 read -p "Please enter the benchmark directory on the cluster\
   [~/amdapp-2.5-evg/"$benchmark_name"]" benchmark_dir
 while [[ -z "$benchmark_dir" ]];
-do
-    benchmark_dir="~/amdapp-2.5-evg/""$benchmark_name"
+  do
+      benchmark_dir="~/amdapp-2.5-evg/""$benchmark_name"
 done
 
-read -p "Please enter the m2s directory on the cluster\
-  [~/m2s-4.2/bin/m2s]" m2s_dir
-while [[ -z "$m2s_dir" ]];
-do
-    m2s_dir="~/m2s-4.2/bin/m2s"
+read -p "Please enter the path to the m2s binary on the cluster\
+  [~/m2s-4.2/bin/m2s]" m2s_path
+while [[ -z "$m2s_path" ]];
+  do
+      m2s_path="~/m2s-4.2/bin/m2s"
 done
 
 read -p "Please enter any benchmark arguments\
   [-q]" benchmark_args
   while [[ -z ""$benchmark_args"" ]];
-do
-    benchmark_args='-q'
+  do
+      benchmark_args='-q'
 done
 
-ssh $ssh_server '
+
+ssh $ssh_server -p "$ssh_port" '
 benchmark_dir='$benchmark_dir'
-m2s_dir='$m2s_dir'
+m2s_path='$m2s_path'
+if [ ! -d "$benchmark_dir" ];
+  then
+      echo "$benchmark_dir"" does not exist"
+      exit 1
+fi
+
+if [ ! -f "$m2s_path" ];
+  then
+      echo "$m2s_path"" does not exist"
+      exit 1
+fi
 ' || exit 1
 
+home_dir=$(ssh $ssh_server -p $ssh_port ' echo $HOME
+' || exit 1)
+
+echo $home_dir
+
+echo "Running m2s training"
 #Run benchmark and determine number of cycles
-num_cycles=$(ssh $ssh_server '
-m2s_dir='$m2s_dir'
+cycle_max=$(ssh $ssh_server -p $ssh_port '
+m2s_path='$m2s_path'
 benchmark_name='$benchmark_name'
 benchmark_args='${benchmark_args// /\\ \\}'
 benchmark_dir='$benchmark_dir'
-$m2s_dir --evg-sim detailed "$benchmark_dir"/"$benchmark_name" \
+$m2s_path --evg-sim detailed "$benchmark_dir"/"$benchmark_name" \
 --load "$benchmark_name""_Kernels.bin" '$benchmark_args'\
 > m2s_training 2>&1 >/dev/null 
-temp_num_cycles=$(grep -m2 "Cycles = " m2s_training | tail -n1 | sed "s/[^0-9]//g")
-echo $temp_num_cycles
+temp_cycle_max=$(grep -m2 "Cycles = " m2s_training | tail -n1 | sed "s/[^0-9]//g")
+echo $temp_cycle_max
 ' || exit 1)
 
-#echo Number of Cycles is "$num_cycles"
-
+echo "Generating faults"
 #Run Python Script and save faults to host
-./fault_gen.py -b "$benchmark_name" "$fault_type" "$num_faults" 2>&1 >/dev/null
-fault_dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-tar cvzf $benchmark_name"_faults"".tar.gz" "$benchmark_name""_faults" > /dev/null 
-scp "$benchmark_name""_faults"".tar.gz" tgale@rousseau:~/ > /dev/null
+./fault_gen.py -b "$benchmark_name" "$fault_type" "$num_faults" "$cycle_max" 2>&1 >/dev/null
+#fault_dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+tar cvzf $benchmark_name"_faults"".tar.gz" "$benchmark_name""_faults" >/dev/null
+scp -q "$benchmark_name""_faults"".tar.gz" tgale@rousseau:~/ 2>&1 >/dev/null
 
-ssh $ssh_server '
+touch data.dat
+i=1
+while [[ $i -le $num_faults ]]; 
+do
+    echo "$home_dir""/""$benchmark_name""_faults""/$[i]" >> data.dat
+    ((i++))
+done
+
+touch launch.sh
+echo "#!/bin/bash" >> launch.sh
+echo num_faults="$num_faults" >> launch.sh
+echo benchmark_name="$benchmark_name" >> launch.sh
+echo benchmark_args="${benchmark_args// /\\ \\}" >> launch.sh
+echo benchmark_dir="$benchmark_dir" >> launch.sh
+echo m2s_path="$m2s_path" >> launch.sh
+
+echo 'PARAMETERS=$(awk -v line=${SLURM_ARRAY_TASK_ID} '\''{if (NR==line){ print$0; };}'\'' ./data.dat)' >> launch.sh
+
+echo 'srun $m2s_path --evg-sim detailed --evg-faults $PARAMETERS --evg-debug-faults debug_$SLURM_ARRAY_TASK_ID "$benchmark_dir"/"$benchmark_name" --load "$benchmark_name"_Kernels.bin ''$benchmark_args''' >> launch.sh
+
+scp -q -P $ssh_port data.dat launch.sh $ssh_server:~/ 2>&1 >/dev/null
+
+echo "Sending jobs"
+ssh $ssh_server -p $ssh_port '
 num_faults='$num_faults'
 benchmark_name='$benchmark_name'
 benchmark_args='${benchmark_args// /\\ \\}'
 benchmark_dir='$benchmark_dir'
-m2s_dir='$m2s_dir'
-tar xvzf $benchmark_name"_faults"".tar.gz"
-fault_dir_cluster="$~/"$benchmark_name""_faults""
-i=1
-while [ $i -le $num_faults ]
-do
-  srun $m2s_dir --evg-sim detailed --evg-faults "$fault_dir_cluster""/""$i" \
-  --evg-debug-faults debug_"$i" "$benchmark_dir"/"$benchmark_name" --load \
-  "$benchmark_dir"/"$benchmark_name"_Kernels.bin '$benchmark_args'
-  ((i++))
-done
+m2s_path='$m2s_path'
+tar xvzf $benchmark_name"_faults"".tar.gz" >/dev/null
+fault_dir_cluster=$"$benchmark_name""_faults"
+
+sbatch --array=1-$num_faults launch.sh
+
 ' || exit 1
 
-echo 'Jobs Sent'
+echo "Jobs sent"
+
+
+
+
+
+
 
 
 
