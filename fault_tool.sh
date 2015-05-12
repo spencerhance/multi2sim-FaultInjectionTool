@@ -71,11 +71,11 @@ if [ "$3" == "mem" -o "$3" == "reg" -o "$3" == "ams" ];
       exit 1
 fi
 
-if [[ $4 =~ ^[0-9]+$ ]];
+if [[ ( $4 =~ ^[0-9]+$ ) && ( $4 -gt 0 ) ]];
   then
       num_faults=$4  
   else
-      echo "ERROR: invalid number of faults, must be an integer" >&2;
+      echo "ERROR: invalid number of faults, must be an integer greater than 0" >&2;
       exit 1
 fi
 
@@ -108,21 +108,19 @@ benchmark_dir='$benchmark_dir'
 m2s_path='$m2s_path'
 if [ ! -d "$benchmark_dir" ];
   then
-      echo "$benchmark_dir"" does not exist"
+      echo "ERROR: ""$benchmark_dir"" does not exist"
       exit 1
 fi
 
 if [ ! -f "$m2s_path" ];
   then
-      echo "$m2s_path"" does not exist"
+      echo "ERROR: ""$m2s_path"" does not exist"
       exit 1
 fi
 ' || exit 1
 
 home_dir=$(ssh $ssh_server -p $ssh_port ' echo $HOME
 ' || exit 1)
-
-echo $home_dir
 
 echo "Running m2s training"
 #Run benchmark and determine number of cycles
@@ -131,8 +129,8 @@ m2s_path='$m2s_path'
 benchmark_name='$benchmark_name'
 benchmark_args='${benchmark_args// /\\ \\}'
 benchmark_dir='$benchmark_dir'
-$m2s_path --evg-sim detailed "$benchmark_dir"/"$benchmark_name" \
---load "$benchmark_name""_Kernels.bin" '$benchmark_args'\
+srun $m2s_path --evg-sim detailed "$benchmark_dir"/"$benchmark_name" \
+--load "$benchmark_name""_Kernels.bin" $benchmark_args \
 > m2s_training 2>&1 >/dev/null 
 temp_cycle_max=$(grep -m2 "Cycles = " m2s_training | tail -n1 | sed "s/[^0-9]//g")
 echo $temp_cycle_max
@@ -144,6 +142,8 @@ echo "Generating faults"
 #fault_dir=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 tar cvzf $benchmark_name"_faults"".tar.gz" "$benchmark_name""_faults" >/dev/null
 scp -q "$benchmark_name""_faults"".tar.gz" tgale@rousseau:~/ 2>&1 >/dev/null
+
+
 
 touch data.dat
 i=1
@@ -178,10 +178,18 @@ tar xvzf $benchmark_name"_faults"".tar.gz" >/dev/null
 fault_dir_cluster=$"$benchmark_name""_faults"
 
 sbatch --array=1-$num_faults launch.sh
-
+rm "$benchmark_name""_faults"".tar.gz"
+rm m2s_training
 ' || exit 1
 
 echo "Jobs sent"
+
+#Cleaning up
+rm launch.sh
+rm data.dat
+rm "$benchmark_name""_faults"".tar.gz"
+rm -r "$benchmark_name""_faults"
+
 
 
 
