@@ -1,5 +1,4 @@
-#!/usr/local/bin/bash
-###change this, this is only for my mac###
+#!/bin/bash
 
 set -o errexit
 
