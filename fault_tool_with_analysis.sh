@@ -25,6 +25,7 @@ function syntax()
 ENDOFTEXT
 }
 
+
 if [ $# -lt 1 ];
 then
 	echo "ERROR: insufficient number of arguments"
@@ -158,40 +159,74 @@ case "$option" in
 	fi
 	' || exit 1
 
-	home_dir=$(ssh $ssh_server -p $ssh_port ' echo $HOME
+        
+        #Get the users home directory on the node
+        home_dir=$(ssh $ssh_server -p $ssh_port ' echo $HOME
 	' || exit 1)
+        
+        #Converts the benchmark path to a discrete path
+        benchmark_dir=$(ssh $ssh_server -p $ssh_port '
+        benchmark_dir='$benchmark_dir'
+        cd "$benchmark_dir"
+        pwd
+        ' || exit 1)
 
-	
 	echo "Running m2s training"
-	cycle_max=$(ssh $ssh_server -p $ssh_port '
+        
+        #Create m2s ini file for training
+        touch m2s_training_config.ini
+        echo "[ Context 0 ]" >> m2s_training_config.ini
+        echo "Cwd = "$benchmark_dir"" >> m2s_training_config.ini
+        echo "Exe = "$benchmark_name"" >> m2s_training_config.ini
+        echo "Args = "--load ""$benchmark_name""_Kernels.bin ""$benchmark_args"" >> m2s_training_config.ini
+        #Scp config file to node
+        scp -q -P "$ssh_port" m2s_training_config.ini "$ssh_server":~/ 2>&1 >/dev/null
+        
+        cycle_max=$(ssh $ssh_server -p $ssh_port '
 	m2s_path='$m2s_path'
 	benchmark_name='$benchmark_name'
 	benchmark_args='${benchmark_args// /\\ \\}'
 	benchmark_dir='$benchmark_dir'
-	srun $m2s_path --evg-sim detailed "$benchmark_dir"/"$benchmark_name" \
-	--load "$benchmark_name""_Kernels.bin" $benchmark_args \
-	> m2s_training 2>&1 >/dev/null 
+	srun $m2s_path --evg-sim detailed --ctx-config m2s_training_config.ini \
+        2> m2s_training 1>/dev/null 
 	temp_cycle_max=$(grep -m2 "Cycles = " m2s_training | tail -n1 | sed "s/[^0-9]//g")
 	echo $temp_cycle_max
 	' || exit 1)
 
+        echo $cycle_max
+        rm m2s_training_config.ini
+
+        
 	###generate the fault files###
 	echo "Generating faults"
 	./fault_gen.py -b "$benchmark_name" "$fault_type" "$num_faults" "$cycle_max" 2>&1>/dev/null
-   
-	###copy all fault files to server### 
-	tar czf $benchmark_name"_faults"".tar.gz" "$benchmark_name""_faults" >/dev/null
-	scp -q "$benchmark_name""_faults"".tar.gz" "$ssh_server":~/ 2>&1 >/dev/null
-      
-	###create file with paths to all fault files###
+     	     
+	###Create file with paths to all fault files###
+        ###Create config files and add their paths  ###
+        ###to a new file                            ###
 	touch data.dat
+        touch config_data.dat
+        mkdir "$benchmark_name""_config_files"
 	i=1
 	while [[ $i -le $num_faults ]]; 
-	do
-		echo "$home_dir""/""$benchmark_name""_faults""/$[i]" >> data.dat
-		((i++))
+	do      
+                echo "$home_dir""/""$benchmark_name""_faults""/$[i]" >> data.dat
+		touch "$benchmark_name""_config_""$i"".ini"
+                echo "[ Context 0 ]" >> ""$benchmark_name"_config_""$i"".ini"
+                echo "Cwd = "$benchmark_dir"" >> ""$benchmark_name"_config_""$i"".ini"
+                echo "Exe = "$benchmark_name"" >> ""$benchmark_name"_config_""$i"".ini" 
+                echo "Args = "--load ""$benchmark_name""_Kernels.bin ""$benchmark_args"" >> ""$benchmark_name"_config_""$i"".ini"
+                echo "StdOut = "$benchmark_name""_""$i".out" >> ""$benchmark_name"_config_""$i"".ini"
+                mv ""$benchmark_name"_config_""$i".ini "$benchmark_name""_config_files"
+                echo "$home_dir""/""$benchmark_name""_config_files""/"$benchmark_name""_config_""$i""".ini" >> config_data.dat
+                ((i++))
 	done
 
+        ###copy all fault files to server### 
+	tar czf $benchmark_name"_faults"".tar.gz" "$benchmark_name""_faults" "$benchmark_name""_config_files" >/dev/null
+	scp -q "$benchmark_name""_faults"".tar.gz" "$ssh_server":~/ 2>&1 >/dev/null
+
+        
 	###create slurm launch script###
 	touch launch.sh
 	echo "#!/bin/bash" >> launch.sh
@@ -203,10 +238,12 @@ case "$option" in
 
 	echo 'PARAMETERS=$(awk -v line=${SLURM_ARRAY_TASK_ID} '\''{if (NR==line){ print$0; };}'\'' ./data.dat)' >> launch.sh
 
-	echo 'srun $m2s_path --evg-sim detailed --evg-faults $PARAMETERS --evg-debug-faults debug_$SLURM_ARRAY_TASK_ID "$benchmark_dir"/"$benchmark_name" --load "$benchmark_name"_Kernels.bin ''$benchmark_args''' >> launch.sh
-
-	###copy launch script and data to server###
-	scp -q -P $ssh_port data.dat launch.sh $ssh_server:~/ 2>&1 >/dev/null
+        echo 'CONFIG=$(awk -v line=${SLURM_ARRAY_TASK_ID} '\''{if (NR==line){ print$0; };}'\'' ./config_data.dat)' >> launch.sh
+          
+	echo 'srun $m2s_path --evg-sim detailed --evg-faults $PARAMETERS --evg-debug-faults debug_$SLURM_ARRAY_TASK_ID --ctx-config $CONFIG' >> launch.sh
+        
+        ###copy launch script and data to server###
+	scp -q -P $ssh_port data.dat config_data.dat launch.sh $ssh_server:~/ 2>&1 >/dev/null
 
 	###submit jobs to slurm###
 	echo "Sending jobs"
@@ -221,20 +258,23 @@ case "$option" in
       
 	test=$(sbatch --array=1-$num_faults launch.sh)
 	rm "$benchmark_name""_faults"".tar.gz"
-	rm m2s_training
+        rm m2s_training_config.ini
+
 	echo $test
 	' || exit 1)
 
 	echo "Jobs sent"
 	###get slurm job ID###
-	slurm_id=$(echo $output | cut -d \  -f 4)
+	slurm_id=$(echo $output | cut -d \  -f 4)          
 
 	###Clean up used scripts###
 	rm launch.sh
 	rm data.dat
+        rm config_data.dat
 	rm "$benchmark_name""_faults"".tar.gz"
 	rm -r "$benchmark_name""_faults"
-
+        rm -r "$benchmark_name""_config_files"
+        
 	###make temporary file to store variables###
 	touch vars.dat
 	echo "$slurm_id $ssh_server $ssh_port" >> vars.dat
@@ -246,7 +286,8 @@ case "$option" in
 			temp+=($line)
 		done < vars.dat
 		
-		for i in ${temp[@]}; do
+		#for i in ${temp[@]};
+
 					
 	#	ssh ${temp[1]} -p ${temp[2]} '
 	#		job_id='${temp[0]}'
@@ -266,19 +307,27 @@ case "$option" in
 		echo "ERROR: invalid slurm_ID" >&2;
 		exit 1
 	fi
+        
 
-	ssh $ssh_server -p $ssh_port '
+        ###HARDCODED TEST###
+        benchmark_dir=/home/tgale/amdapp-2.5-evg/DCT
+        benchmark_name='DCT'
+        num_faults=10
+
+	ssh $ssh_server tgale@rousseau '
+        benchmark_dir='$benchmark_dir'
 	num_faults='$num_faults'
 	benchmark_name='$benchmark_name'
 	slurm_id='$slurm_id'
 	faults_path='~/'"$benchmark_name""_faults/"
 
-	mkdir -p results/'{1..$num_faults}'
+	mkdir -p results/'{1.."$num_faults"}'
 	results_path='~/'"results/"
       
 	i=1
 	while [[ $i -le $num_faults ]];
-	do
+	do      
+                mv "$benchmark_dir""/""DCT_""$i"".out" "$results_path""$i"
 		mv "$faults_path""$i" "$results_path""$i" 
 		mv "slurm-""$slurm_id""_""$i"".out" "$results_path""$i" 
 		mv "debug_""$i" "$results_path""$i" 
@@ -288,6 +337,7 @@ case "$option" in
 	rm -r "$faults_path"
 	rm launch.sh
 	rm data.dat
+        rm config_data.dat
 	' || exit 1
 
 	#PYTHON ANALYSIS GOES HERE
