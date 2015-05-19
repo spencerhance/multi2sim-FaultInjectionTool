@@ -35,7 +35,7 @@ def initDb(db_name):
 
     return c, conn;
 
-def processSimOutput(sim_output_path, benchmark_path):
+def processSimOutput(sim_output_path, benchmark_out_path):
     """
     Processes the slurm m2s output and returns associated
     variables
@@ -87,7 +87,7 @@ def processDebugOutput(debug_output, fault_type):
     Processes the m2s debug output and returns associated
     variables
     """
-    effect=re.search('.*effect=.(\w+)', debug_output).group(1)
+    effect = re.search('.*effect=.(\w+)', debug_output).group(1)
     if effect == 'error':
         if fault_type == 'reg':
             data=re.search(
@@ -198,7 +198,7 @@ def main():
                       % (i, fault_type, benchmark_name, fault_cycle, 
                          fault_cu, fault_stack, fault_mask, fault_bit, outcome, cycle_total, 
                          cycle_gpu, effect))
-
+        debug_output.close()
         conn.commit()
           
     
