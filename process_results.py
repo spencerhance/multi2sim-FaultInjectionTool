@@ -71,15 +71,14 @@ def processBenchmarkOutput(benchmark_out_path):
     """
     with open(benchmark_out_path) as benchmark_output:
         for line in benchmark_output:
-            for word in line:
-                if word == 'Passed!':
-                    outcome = 'Passed'
-                    break
-                elif word == 'Failed':
-                    outcome = 'Failed'
-                    break
-                else:
-                    outcome = 'Unknown'
+            if line == 'Passed!\n':
+                outcome = 'Passed'
+                break
+            elif line == 'Failed!\n':
+                outcome = 'Failed'
+                break
+            else:
+                outcome = 'Unknown'
     return outcome
 
 def processDebugOutput(debug_output, fault_type):
