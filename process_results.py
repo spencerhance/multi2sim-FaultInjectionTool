@@ -124,8 +124,8 @@ def main():
     results_dir = str(sys.argv[2]) 
     slurm_id = sys.argv[3]
     
-    #Initialize the database and return sql objects
-    db_name = benchmark_name + '_' + str(slurm_id)
+    #Initialize the database and return sqlite objects
+    db_name = str(slurm_id) + '_' + benchmark_name 
     c, conn = initDb(db_name)
     
     #Determine the number of fault folders to parse
@@ -197,7 +197,6 @@ def main():
                       % (i, fault_type, benchmark_name, fault_cycle, 
                          fault_cu, fault_stack, fault_mask, fault_bit, outcome, cycle_total, 
                          cycle_gpu, effect))
-        debug_output.close()
         conn.commit()
           
     
