@@ -74,7 +74,7 @@ def processBenchmarkOutput(benchmark_out_path):
             if line == 'Passed!\n':
                 outcome = 'Passed'
                 break
-            elif line == 'Failed!\n':
+            elif line == 'Failed\n':
                 outcome = 'Failed'
                 break
             else:
