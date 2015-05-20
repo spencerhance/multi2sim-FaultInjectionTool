@@ -1,0 +1,109 @@
+***********************************************************************
+_______________________________________________________________________ 
+  ______          _ _     _____       _           _   _             
+ |  ____|        | | |   |_   _|     (_)         | | (_)            
+ | |__ __ _ _   _| | |_    | |  _ __  _  ___  ___| |_ _  ___  _ __  
+ |  __/ _` | | | | | __|   | | | '_ \| |/ _ \/ __| __| |/ _ \| '_ \ 
+ | | | (_| | |_| | | |_   _| |_| | | | |  __/ (__| |_| | (_) | | | |
+ |_|__\__,_|\__,_|_|\__| |_____|_| |_| |\___|\___|\__|_|\___/|_| |_|
+ |__   __|        | |               _/ |                            
+    | | ___   ___ | |              |__/                             
+    | |/ _ \ / _ \| |                                               
+    | | (_) | (_) | |                                               
+    |_|\___/ \___/|_|
+_______________________________________________________________________
+
+AUTHORS
+_______________________________________________________________________
+Trevor Gale
+gale.t@husky.neu.edu
+_______________________________________________________________________
+Spencer Hance
+hance.s@husky.neu.edu
+_______________________________________________________________________
+Fritz Previlon
+previlon.f@husky.neu.edu
+_______________________________________________________________________
+
+Introduction:
+**************
+This fault injection tool is meant to be used as a tool to launch
+massive multi2sim fault injection simulations on a cluster.  The tool is
+currently working with multi2sim-4.2 Evergreen architecture and slurm 
+as a cluster managementtool
+
+Modules:
+**************
+The fault_injection_tool folder includes 3 files, fault_tool.sh, 
+process_results.py, and fault_gen.py.  The fault_tool bash script is
+the central script where everything is launched. fault_gen.py is an
+internal module which will generate the m2s fault files needed for m2s
+fault_injection.  process_results.py is an internal module which 
+processes the results and creates a sqlite3 database with important 
+information from the simulations.
+
+Usage:
+**************
+To run the tool, the fault_tool.sh bash script must be run from the 
+command line
+The syntax is as follows:
+
+--sim <ssh_server> <benchmark_name> <fault_type> <num_faults> <ssh_port>
+	runs simulation of benchmark_name with num_faults injected 
+	into memory region fault_type
+		ssh_server: user@ip_of_cluster
+		benchmark_name: name of benchmark to run
+		fault_type: region to inject faults in (mem, reg, or ams)
+		num_faults: number of faults to inject
+		ssh_port: default is 22
+	
+--status <ssh_server>
+	returns status of running simulations
+        	ssh_server: user@ip_of_cluster
+--get-results
+	pulls results from server to client
+
+In order to launch the simulations, the --sim command must be used
+with its requisite input.  If no port number is specified it will 
+default to 22.  While the program is running you will be prompted 
+for the m2s and benchmark directories on the cluster as well as any
+benchmark arguments.
+
+Once the simulations have completed, there will a directory on the 
+head node ending in "results."  This folder contains a sub-directory
+for every fault that was created.  In each of those sub-directories
+will be a fault file, debug file, benchmark output file, and a m2s output file from that simulation run.  These results are also parsed and located in a ".db" file in the node with a prefix of the slurm-ID.
+When --get-results is run, the results folder will be copied back to the fault_injection_tool folder as a tarball, as well as the database.
+
+Dependencies:
+**************
+AMDAPP-2.5 benchmarks
+multi2sim-4.2 built on the cluster
+Python 2.7 libraries
+-sys
+-os
+-re
+-sqlite3 
+-ConfigParser
+-fileinput
+-OptionParser
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

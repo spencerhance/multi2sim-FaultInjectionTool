@@ -1,6 +1,6 @@
 #!/bin/bash
 #######################################################
-###this is the most up to date script as of may 19th###
+###this is the most up to date script as of may 20th###
 #######################################################
 set -o errexit
 
@@ -66,14 +66,16 @@ declare -a bench_list=('BinarySearch' \
 option=$1
 
 
-#######################################################
-#branch for each option (--sim/--status/--get_results)#
-#######################################################
+##########################################################
+###BRANCH FOR EACH OPTION(--sim/--status/--get-results)###
+##########################################################
 case "$option" in
-	--sim)
 
-	###check all inputs for errors###
-	###store vlaues if valid###
+	--sim)
+	##################
+	###CHECK INPUTS###
+	##################
+
 	if [ $# -lt 5 ];
 	then
 		syntax	
@@ -122,27 +124,43 @@ case "$option" in
       		exit 1
 	fi
 
-	###get <benchmark_dir> <m2s_dir> and <benchmark_args>###
+	#########################
+	###GET INPUT FROM USER###
+	#########################
+
+	###get benchmark directory###
 	read -p "Please enter the benchmark directory on the cluster\
 	[~/amdapp-2.5-evg/"$benchmark_name"]" benchmark_dir
-	while [[ -z "$benchmark_dir" ]];
-	do
-		benchmark_dir="~/amdapp-2.5-evg/""$benchmark_name"
-	done
-
+	if [[ -z "$benchmark_dir" ]]; then	
+		benchmark_dir="~/amdapp-2.5-evg/"$benchmark_name
+	        benchmark_dir=$(ssh $ssh_server -p $ssh_port '
+		benchmark_dir='$benchmark_dir'
+	        cd $benchmark_dir
+		pwd
+	        ' || exit 1)
+	else	 
+	        benchmark_dir=$(ssh $ssh_server -p $ssh_port '
+	        benchmark_dir='$benchmark_dir'
+	        cd "$benchmark_dir"
+	        pwd
+	        ' || exit 1)
+	fi
+	
+	###get m2s directory###
 	read -p "Please enter the path to the m2s binary on the cluster\
 	[~/m2s-4.2/bin/m2s]" m2s_path
-	while [[ -z "$m2s_path" ]];
-        do
+	if [[ -z "$m2s_path" ]]; then
 		m2s_path="~/m2s-4.2/bin/m2s"
-	done
-
+	fi
+	
+	###get benchmark arguments###
 	read -p "Please enter any benchmark arguments\
         [-q -e]" benchmark_args
-	while [[ -z ""$benchmark_args"" ]];
-	do
+	if [[ -z ""$benchmark_args"" ]]; then
 		benchmark_args='-q -e'
-	done
+	else
+		benchmark_args=$benchmark_args" -q -e"
+	fi
 
 	###check for valid paths###
 	ssh $ssh_server -p "$ssh_port" '
@@ -165,17 +183,10 @@ case "$option" in
         #Get the users home directory on the node
         home_dir=$(ssh $ssh_server -p $ssh_port ' echo $HOME
 	' || exit 1)
-        
-	######################################
-	###THIS REINITIALIZES benchmark_dir###
-	######################################
-        #Converts the benchmark path to a discrete path
-        benchmark_dir=$(ssh $ssh_server -p $ssh_port '
-        benchmark_dir='$benchmark_dir'
-        cd "$benchmark_dir"
-        pwd
-        ' || exit 1)
-
+       
+	######################
+	###RUN M2S TRAINING### 
+	######################
 	echo "Running m2s training"
         
         #Create m2s ini file for training
@@ -184,6 +195,7 @@ case "$option" in
         echo "Cwd = "$benchmark_dir"" >> m2s_training_config.ini
         echo "Exe = "$benchmark_name"" >> m2s_training_config.ini
         echo "Args = "--load ""$benchmark_name""_Kernels.bin ""$benchmark_args"" >> m2s_training_config.ini
+
         #Scp config file to node
         scp -q -P "$ssh_port" m2s_training_config.ini "$ssh_server":~/ 2>&1 >/dev/null
         
@@ -200,14 +212,23 @@ case "$option" in
 
         rm m2s_training_config.ini
 
-        
-	###generate the fault files###
+        #Verify cycle_max is a valid number
+        if ! [[ $cycle_max =~ ^[0-9]+$ ]];
+          then
+              echo "Error occured while running m2s training"
+              exit 1
+        fi
+	
+	#Create evg max cycle number for m2s
+        evg_max="$(($cycle_max * 2))"
+
+	##########################        
+	###GENERATE FAULT FILES###
+	##########################
+
 	echo "Generating faults"
 	./fault_gen.py -b "$benchmark_name" "$fault_type" "$num_faults" "$cycle_max" 2>&1>/dev/null
      	     
-	###Create file with paths to all fault files###
-        ###Create config files and add their paths  ###
-        ###to a new file                            ###
 	touch data.dat
         touch config_data.dat
         mkdir "$benchmark_name""_config_files"
@@ -230,8 +251,10 @@ case "$option" in
 	tar czf $benchmark_name"_faults"".tar.gz" "$benchmark_name""_faults" "$benchmark_name""_config_files" >/dev/null
 	scp -q "$benchmark_name""_faults"".tar.gz" "$ssh_server":~/ 2>&1 >/dev/null
 
-        
-	###create slurm launch script###
+	########################        
+	###LAUNCH SIMULATIONS###
+	########################
+
 	touch launch.sh
 	echo "#!/bin/bash" >> launch.sh
 	echo num_faults="$num_faults" >> launch.sh
@@ -239,12 +262,13 @@ case "$option" in
 	echo benchmark_args="${benchmark_args// /\\ \\}" >> launch.sh
 	echo benchmark_dir="$benchmark_dir" >> launch.sh
 	echo m2s_path="$m2s_path" >> launch.sh
+	echo evg_max="$evg_max" >> launch.sh
 
 	echo 'PARAMETERS=$(awk -v line=${SLURM_ARRAY_TASK_ID} '\''{if (NR==line){ print$0; };}'\'' ./data.dat)' >> launch.sh
 
         echo 'CONFIG=$(awk -v line=${SLURM_ARRAY_TASK_ID} '\''{if (NR==line){ print$0; };}'\'' ./config_data.dat)' >> launch.sh
           
-	echo 'srun $m2s_path --evg-sim detailed --evg-faults $PARAMETERS --evg-debug-faults debug_$SLURM_ARRAY_TASK_ID --ctx-config $CONFIG' >> launch.sh
+	echo 'srun $m2s_path --evg-sim detailed --evg-max-cycles $evg_max --evg-faults $PARAMETERS --evg-debug-faults debug_$SLURM_ARRAY_TASK_ID --ctx-config $CONFIG' >> launch.sh
         
         ###copy launch script and data to server###
 	scp -q -P $ssh_port data.dat config_data.dat launch.sh $ssh_server:~/ 2>&1 >/dev/null
@@ -263,6 +287,7 @@ case "$option" in
 	test=$(sbatch --array=1-$num_faults launch.sh)
 	rm "$benchmark_name""_faults"".tar.gz"
         rm m2s_training_config.ini
+	rm m2s_training
 
 	echo $test
 	' || exit 1)
@@ -281,6 +306,7 @@ case "$option" in
 	####################################
 	###LAUNCHING ORGANIZATINAL SCRIPT###
 	####################################
+
 	cat <<- EOF > organize.sh
 	#!/bin/bash
 
@@ -290,8 +316,8 @@ case "$option" in
 	faults_path=$home_dir/$benchmark_name"_faults/"
 	benchmark_dir=$benchmark_dir/
 
-	mkdir -p results/{1..$num_faults}
-	results_path=$home_dir"/results/"
+	mkdir -p $slurm_id"_results"/{1..$num_faults}
+	results_path=$home_dir"/"$slurm_id"_results/"
 
 	i=1
 	while [[ \$i -le \$num_faults ]];
@@ -310,9 +336,11 @@ case "$option" in
 		EOF
 
 	scp -q -P $ssh_port organize.sh $ssh_server:~/ 2>&1 >/dev/null
-
+	rm organize.sh
 	output=$(ssh -p $ssh_port $ssh_server '
 	slurm_id='$slurm_id'
+	benchmark_name='$benchmark_name'
+
 	sbatch --dependency=afterany:$slurm_id organize.sh
 	' || exit 1)
 
@@ -322,7 +350,8 @@ case "$option" in
 	###############################
 	###LAUNCHING DATABASE SCRIPT###
 	###############################
-	results_dir=$home_dir"/results"
+
+	results_dir=$home_dir"/"$slurm_id"_results"
 	cat <<- EOF > process_results.sh
 	#!/bin/bash
 
@@ -330,19 +359,39 @@ case "$option" in
 	EOF
 
 	scp -q -P $ssh_port process_results.sh process_results.py $ssh_server:~/ 2>&1 >/dev/null
+	rm process_results.sh
+
 	output=$(ssh -p $ssh_port $ssh_server '
 	org_slurm_id='$org_slurm_id'
+
 	sbatch --dependency=afterany:$org_slurm_id process_results.sh
 	' || exit 1)
 
 	###get slurm job ID###
 	DB_slurm_id=$(echo $output | cut -d \  -f 4)
+	
+	#######################
+	###LAUNCHING CLEANUP###
+	#######################
 
-	#########################################
-	###make temporary file to store values###
-	#########################################
-	#touch vars.dat
-	#echo "$slurm_id $ssh_server $ssh_port" >> vars.dat
+	ssh -p $ssh_port $ssh_server '
+	slurm_id='$slurm_id'
+	DB_slurm_id='$DB_slurm_id'
+	org_slurm_id='$org_slurm_id'
+	benchmark_name='$benchmark_name'
+
+	cat <<- EOF > $slurm_id"_clean.sh"
+		#!/bin/bash
+		
+		srun rm -r process_results.py process_results.sh config_data.dat organize.sh $benchmark_name"_config_files" slurm-$DB_slurm_id".out" slurm-$org_slurm_id".out"
+		EOF
+	
+	sbatch --dependency=afterany:$DB_slurm_id $slurm_id"_clean.sh" 2>&1>/dev/null
+	' || exit 1
+
+	###########################
+	###CREATE TEMPORARY FILE###
+	###########################
 	;;
 
 
@@ -351,7 +400,6 @@ case "$option" in
 		while read line; do
 			temp+=($line)
 		done < vars.dat
-	#Ending case
 	;;
 	
 	--get-results)
@@ -366,7 +414,7 @@ case "$option" in
 		echo "ERROR: invalid slurm_ID" >&2;
 		exit 1
 	fi
-       
+              
 	#Ending case
 	;;
     
