@@ -37,6 +37,7 @@ https://www.multi2sim.org. The tool is currently working with
 multi2sim-4.2 Evergreen architecture and SLURM as the cluster 
 management tool.
 
+
 Modules:
 **************
 The fault_injection_tool folder includes 3 files, fault_tool.sh, 
@@ -47,6 +48,7 @@ fault_injection.  process_results.py is an internal module which
 processes the results and creates a sqlite3 database with important 
 information from the simulations.
 
+
 Usage:
 **************
 To run the tool, the fault_tool.sh bash script must be run from the 
@@ -56,15 +58,16 @@ The syntax is as follows:
 --sim <ssh_server> <benchmark_name> <fault_type> <num_faults> <ssh_port>
 	runs simulation of benchmark_name with num_faults injected 
 	into memory region fault_type
+
 		ssh_server: user@ip_of_cluster
 		benchmark_name: name of benchmark to run
 		fault_type: region to inject faults in (mem, reg, or ams)
 		num_faults: number of faults to inject
 		ssh_port: default is 22
 	
---status <ssh_server>
+--status 
 	returns status of running simulations
-        	ssh_server: user@ip_of_cluster
+        	
 --get-results
 	pulls results from server to client
 
@@ -78,18 +81,35 @@ random number between 0 and the number you specify for each fault
 file.  Alternatively, the default number is 19, which includes 
 all of the possible compute units.
 
+To view the status of your current simulations, run the --status
+command.  This will display the information and queue for each
+simulation you have launched.  If the simulations has completed,
+"Job Finished" will be printed.
+
 Once the simulations have completed, there will be a directory on the 
-head node ending in "results."  This folder contains a sub-directory
-for every fault that was created.  In each of those sub-directories
-will be a fault file, debug file, benchmark output file, and a 
-m2s output file from that simulation run.  These results are also 
-parsed and located in a ".db" file in the node with a prefix 
-of the slurm-ID.  When --get-results is run, the results folder 
-will be copied back to the fault_injection_tool folder as a tarball, 
-as well as the database.
+head node for each simulation that is named a random number up to 5
+digits.  Inside this folder will be all directories and files created
+for that simulation, inluding the results directory and sqlite3 
+database.
+
+To review your results, run the --get-results option.  This will
+copy the database and compressed results folder back to your machine.
+Additionally, it will delete all temporary files created for that 
+simulation from the cluster.
+
 
 Results:
 **************
+Once you have ran the tool with --get-results, you will have a copy
+of the results directory as well as a compressed results folder on
+your local machine.  The results folder, once extracted, contains
+a subdirectory for each fault.  In those fault directories will be
+the fault file passed to Multi2Sim, the debug file outputted by
+Multi2Sim, the benchmark output, and the simulation output from
+Multi2Sim.  These are provided mainly for debugging purposes as the
+database provides the most useful results.  The sqlite3 database will
+be named with following convention: <job_id>_<benchmark_name>.db
+
 To view your results on your machine, navigate to the 
 fault_injection_tool folder in terminal and run this command:
 
@@ -109,13 +129,16 @@ The table_name will be either "MemFaults,"RegFaults," or "AmsFaults,"
 depending on the simulation you suggested.  This will display all 
 of the fault injection data in your terminal window
 
+
 Dependencies:
 **************
+Cluster running SLURM
+Keyless access to cluster
 AMD OpenCl SDK 2.5 benchmarks for evergreen on the cluster
 multi2sim-4.2 built on the cluster
 sqlite3 on the node
 sqlite3 on your local machine to view results
-bash 4.3.11 or newer on the cluster and local machine
+bash 4.3.11 or newer on the cluster 
 Python 2.7 libraries
  -sys
  -os
