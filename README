@@ -17,20 +17,25 @@ AUTHORS
 _______________________________________________________________________
 Trevor Gale
 gale.t@husky.neu.edu
+http://www1.coe.neu.edu/~tgale/
 _______________________________________________________________________
 Spencer Hance
 hance.s@husky.neu.edu
+http://www1.coe.neu.edu/~shance/
 _______________________________________________________________________
 Fritz Previlon
-previlon.f@husky.neu.edu
+previlon@ece.neu.edu
+http://www1.coe.neu.edu/~fgeraldp/
 _______________________________________________________________________
 
 Introduction:
 **************
 This fault injection tool is meant to be used as a tool to launch
-massive multi2sim fault injection simulations on a cluster.  The tool is
-currently working with multi2sim-4.2 Evergreen architecture and slurm 
-as a cluster managementtool
+massive Multi2Sim fault injection simulations on a cluster.  Multi2Sim 
+is a heterogenous system simulator available at 
+https://www.multi2sim.org. The tool is currently working with 
+multi2sim-4.2 Evergreen architecture and SLURM as the cluster 
+management tool.
 
 Modules:
 **************
@@ -67,18 +72,49 @@ In order to launch the simulations, the --sim command must be used
 with its requisite input.  If no port number is specified it will 
 default to 22.  While the program is running you will be prompted 
 for the m2s and benchmark directories on the cluster as well as any
-benchmark arguments.
+benchmark arguments.  Additionally, you have the ability to specify 
+the number of compute units.  The fault generation will choose a 
+random number between 0 and the number you specify for each fault
+file.  Alternatively, the default number is 19, which includes 
+all of the possible compute units.
 
 Once the simulations have completed, there will a directory on the 
 head node ending in "results."  This folder contains a sub-directory
 for every fault that was created.  In each of those sub-directories
-will be a fault file, debug file, benchmark output file, and a m2s output file from that simulation run.  These results are also parsed and located in a ".db" file in the node with a prefix of the slurm-ID.
-When --get-results is run, the results folder will be copied back to the fault_injection_tool folder as a tarball, as well as the database.
+will be a fault file, debug file, benchmark output file, and a 
+m2s output file from that simulation run.  These results are also 
+parsed and located in a ".db" file in the node with a prefix 
+of the slurm-ID.  When --get-results is run, the results folder 
+will be copied back to the fault_injection_tool folder as a tarball, 
+as well as the database.
+
+Results:
+**************
+To view your results on your machine, navigate to the 
+fault_injection_tool folder in terminal and run this command:
+
+$ sqlite3 <path_to_database> -column
+
+This will open up a sqlite3 terminal.  Then type:
+
+sqlite> .headers on
+
+This will turn on headers to make viewing the data easier.  
+The next step is to open the table.  This is done with the 
+following command:
+
+sqlite> SELECT * FROM <table_name>;
+
+The table_name will be either "MemFaults,"RegFaults," or "AmsFaults," 
+depending on the simulation you suggested.  This will display all 
+of the fault injection data in your terminal window
 
 Dependencies:
 **************
-AMDAPP-2.5 benchmarks
+AMD OpenCl SDK 2.5 benchmarks for evergreen on the cluster
 multi2sim-4.2 built on the cluster
+sqlite3 on the node
+sqlite3 on your local machine to view results
 Python 2.7 libraries
 -sys
 -os
@@ -87,6 +123,7 @@ Python 2.7 libraries
 -ConfigParser
 -fileinput
 -OptionParser
+
 
 
 

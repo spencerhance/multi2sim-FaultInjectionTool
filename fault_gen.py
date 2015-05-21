@@ -154,7 +154,19 @@ def main():
                 GenFaults(fault_num, cycle_max, fault_type, fault_dir, max_cu)
             elif bench == 'MatrixTranspose':
                 GenFaults(fault_num, cycle_max, fault_type, fault_dir, max_cu)
+	    elif bench == 'BinomialOption':
+                GenFaults(fault_num, cycle_max, fault_type, fault_dir, max_cu)
+	    elif bench == 'BlackScholes':
+                GenFaults(fault_num, cycle_max, fault_type, fault_dir, max_cu)
+	    elif bench == 'BoxFilter':
+                GenFaults(fault_num, cycle_max, fault_type, fault_dir, max_cu)
             elif bench == 'DwtHaar1D':
+                GenFaults(fault_num, cycle_max, fault_type, fault_dir, max_cu)
+	    elif bench == 'FloydWarshall':
+                GenFaults(fault_num, cycle_max, fault_type, fault_dir, max_cu)
+	    elif bench == 'RecursiveGaussian':
+                GenFaults(fault_num, cycle_max, fault_type, fault_dir, max_cu)
+	    elif bench == 'SobelFilter':
                 GenFaults(fault_num, cycle_max, fault_type, fault_dir, max_cu)
             elif bench == 'ScanLargeArrays':
                 GenFaults(fault_num, cycle_max, fault_type, fault_dir, max_cu)
