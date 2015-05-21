@@ -78,7 +78,7 @@ random number between 0 and the number you specify for each fault
 file.  Alternatively, the default number is 19, which includes 
 all of the possible compute units.
 
-Once the simulations have completed, there will a directory on the 
+Once the simulations have completed, there will be a directory on the 
 head node ending in "results."  This folder contains a sub-directory
 for every fault that was created.  In each of those sub-directories
 will be a fault file, debug file, benchmark output file, and a 
@@ -115,14 +115,15 @@ AMD OpenCl SDK 2.5 benchmarks for evergreen on the cluster
 multi2sim-4.2 built on the cluster
 sqlite3 on the node
 sqlite3 on your local machine to view results
+bash 4.3.11 or newer on the cluster and local machine
 Python 2.7 libraries
--sys
--os
--re
--sqlite3 
--ConfigParser
--fileinput
--OptionParser
+ -sys
+ -os
+ -re
+ -sqlite3 
+ -ConfigParser
+ -fileinput
+ -OptionParser
 
 
 
