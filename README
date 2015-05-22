@@ -29,7 +29,7 @@ http://www1.coe.neu.edu/~fgeraldp/
 _______________________________________________________________________
 
 Introduction:
-**************
+*******************************
 This fault injection tool is meant to be used as a tool to launch
 massive Multi2Sim fault injection simulations on a cluster.  Multi2Sim 
 is a heterogenous system simulator available at 
@@ -50,12 +50,12 @@ information from the simulations.
 
 
 Usage:
-**************
+*******************************
 To run the tool, the fault_tool.sh bash script must be run from the 
 command line
 The syntax is as follows:
 
---sim <ssh_server> <benchmark_name> <fault_type> <num_faults> <ssh_port>
+--sim <ssh_server> <benchmark_name> <fault_type> <num_faults> <num_cu> <ssh_port>
 	runs simulation of benchmark_name with num_faults injected 
 	into memory region fault_type
 
@@ -68,9 +68,6 @@ The syntax is as follows:
 --status 
 	returns status of running simulations
         	
---get-results
-	pulls results from server to client
-
 In order to launch the simulations, the --sim command must be used
 with its requisite input.  If no port number is specified it will 
 default to 22.  While the program is running you will be prompted 
@@ -78,29 +75,20 @@ for the m2s and benchmark directories on the cluster as well as any
 benchmark arguments.  Additionally, you have the ability to specify 
 the number of compute units.  The fault generation will choose a 
 random number between 0 and the number you specify for each fault
-file.  Alternatively, the default number is 19, which includes 
-all of the possible compute units.
+file.  The maximum number is 19, which includes all of the possible 
+compute units.
 
 To view the status of your current simulations, run the --status
 command.  This will display the information and queue for each
 simulation you have launched.  If the simulations has completed,
-"Job Finished" will be printed.
-
-Once the simulations have completed, there will be a directory on the 
-head node for each simulation that is named a random number up to 5
-digits.  Inside this folder will be all directories and files created
-for that simulation, inluding the results directory and sqlite3 
-database.
-
-To review your results, run the --get-results option.  This will
-copy the database and compressed results folder back to your machine.
-Additionally, it will delete all temporary files created for that 
-simulation from the cluster.
+"Job Finished" will be printed and the results data will be copied
+back to your local machine.  Additionally, it will delete all 
+temporary files created for that simulation from the cluster.
 
 
 Results:
-**************
-Once you have ran the tool with --get-results, you will have a copy
+*******************************
+Once you have recieved the results, you will have a copy
 of the results directory as well as a compressed results folder on
 your local machine.  The results folder, once extracted, contains
 a subdirectory for each fault.  In those fault directories will be
@@ -110,7 +98,7 @@ Multi2Sim.  These are provided mainly for debugging purposes as the
 database provides the most useful results.  The sqlite3 database will
 be named with following convention: <job_id>_<benchmark_name>.db
 
-To view your results on your machine, navigate to the 
+To view your results database on your machine, navigate to the 
 fault_injection_tool folder in terminal and run this command:
 
 $ sqlite3 <path_to_database> -column
@@ -130,8 +118,17 @@ depending on the simulation you suggested.  This will display all
 of the fault injection data in your terminal window
 
 
+Launching Multiple Simulations
+*******************************
+Launching multiple simulations is possible, however too many launches
+in a row triggers a brute force protection mechanism that can freeze
+your jobs.  The same issue can occur when using the --status flag.
+We recommend launching no more than two simulation batches in a row
+and waiting 15 seconds between running the --status option.
+
+
 Dependencies:
-**************
+*******************************
 Cluster running SLURM
 Keyless access to cluster
 AMD OpenCl SDK 2.5 benchmarks for evergreen on the cluster
@@ -147,6 +144,7 @@ Python 2.7 libraries
  -ConfigParser
  -fileinput
  -OptionParser
+
 
 
 

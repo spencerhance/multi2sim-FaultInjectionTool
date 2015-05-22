@@ -10,7 +10,7 @@ function syntax()
 		Syntax: $0 <OPTION>
 
 		OPTIONS:
-			--sim <ssh_server> <benchmark_name> <fault_type> <num_faults> <ssh_port>
+			--sim <ssh_server> <benchmark_name> <fault_type> <num_faults> <num_cu> <ssh_port>
 			        runs simulation of benchmark_name with num_faults injected into memory region fault_type
 			        ssh_server: user@ip_of_server
 			        benchmark_name: name of benchmark to run
@@ -18,11 +18,8 @@ function syntax()
 			        num_faults: number of faults to inject
 			        ssh_port: default is 22
 	
-			--status <ssh_server>
-			        returns status of running simulations
-			        ssh_server: user@ip_of_server
-			--get-results
-			        pulls results from server to client
+			--status
+			        returns status of running simulations. If simulation is complete, results are returned to cwd on localhost
 		
 ENDOFTEXT
 }
@@ -77,17 +74,17 @@ case "$option" in
 	###CHECK INPUTS###
 	##################
 
-	if [ $# -lt 5 ];
+	if [ $# -lt 6 ];
 	then
 		syntax	
 		exit 1
 	fi
-
-	if [[ -z "$ssh_port" ]];
+        
+        if [[ -z "$7" ]];
 	then
 		ssh_port=22
 	else
-		ssh_port=$6
+		ssh_port=$7
 	fi
 
 	ssh_status=$(ssh -o BatchMode=yes -o ConnectTimeout=5 "$2" -p "$ssh_port" echo ok)
@@ -124,7 +121,15 @@ case "$option" in
      		 echo "ERROR: invalid number of faults, must be an integer greater than 0" >&2;
       		exit 1
 	fi
-
+	        
+        if [[ ( $6 =~ ^[0-9]+$ ) && ( $6 -ge 0 ) && ( $6 -le 19 ) ]];
+          then
+                num_cu=$6
+          else
+                echo "ERROR: invalid number of compute units" >&2;
+                exit 1
+        fi
+       
 	#########################
 	###GET INPUT FROM USER###
 	#########################
@@ -225,7 +230,7 @@ case "$option" in
 	output=$(ssh $ssh_server -p $ssh_port '	
 	cd '$job_dir'
 	
-        srun fault_gen.py -b '$benchmark_name' '$fault_type' '$num_faults' '$cycle_max' 2>&1>/dev/null
+        srun fault_gen.py -b '$benchmark_name' -c '$num_cu' '$fault_type' '$num_faults' '$cycle_max' 2>&1>/dev/null
 
 	touch data.dat
         touch config_data.dat
@@ -306,6 +311,7 @@ case "$option" in
 
 		./process_results.py '$benchmark_name' '$results_dir' '$slurm_id'
 
+		touch DONE
 		EOF
 
 	sbatch --dependency=afterany:'$slurm_id' organize.sh 2>&1>/dev/null
@@ -316,7 +322,9 @@ case "$option" in
 	###########################
 	###CREATE TEMPORARY FILE###
 	###########################
-
+	cat <<- EOF >> var.tmp
+		$job_dir $slurm_id $benchmark_name $ssh_server $ssh_port
+		EOF
 	;;
 
 
@@ -324,25 +332,46 @@ case "$option" in
 
 		while read line; do
 			temp+=($line)
-		done < vars.dat
+		done < var.tmp
+
+		lines=$((${#temp[@]} / 5))
+		OS=$(uname -s)
+		i=0
+		while [[ $i -lt $lines ]]; do
+			status=$(ssh ${temp[3+$i*5]} -p ${temp[4+$i*5]} '
+				if [ -e "'${temp[$i*5]}'/DONE" ]; then
+					echo "Job Finished"
+				else
+					squeue -j '${temp[1+$i*5]}'
+				fi ')
+			cat <<- EOF
+				Slurm_Job_ID=${temp[1+$i*5]}
+				Benchmark_name=${temp[2+$i*5]}
+				Status=$status				
+				EOF
+			if [ "$status" == "Job Finished" ]; then
+				echo "Copying back results..."
+				scp -q -r -P ${temp[4+$i*5]} ${temp[3+$i*5]}:${temp[$i*5]}/${temp[1+$i*5]}_results ./
+				scp -q -r -P ${temp[4+$i*5]} ${temp[3+$i*5]}:${temp[$i*5]}/${temp[1+$i*5]}_${temp[2+$i*5]}.db ./
+				ssh ${temp[3+$i*5]} -p ${temp[4+$i*5]} '
+					rm -r '${temp[$i*5]}'
+				'
+			fi
+
+			i+=1
+
+			if [ "$status" == "Job Finished" ]; then 
+				sed -i -e "$i"d var.tmp
+
+				if [ "$OS" == "Darwin" ]; then
+					rm var.tmp-e
+				fi
+			fi
+		done
+
+
 	;;
 	
-	--get-results)
-	read -p "Enter Slurm Job ID: " slurm_id
-	while [[ -z "$slurm_id" ]];
-	do
-		read -p "Enter Slurm Job ID: " slurm_id
-	done
-      
-	if [[ ( ! $slurm_id =~ ^[0-9]+$ ) || ( ! $slurm_id -gt 0 ) ]];
-        then
-		echo "ERROR: invalid slurm_ID" >&2;
-		exit 1
-	fi
-              
-	#Ending case
-	;;
-    
 	*)
 	echo "$option"" is an invalid selection"
 	syntax
