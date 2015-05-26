@@ -44,7 +44,7 @@ The fault_injection_tool folder includes 3 files, fault_tool.sh,
 process_results.py, and fault_gen.py.  The fault_tool bash script is
 the central script where everything is launched. fault_gen.py is an
 internal module which will generate the m2s fault files needed for m2s
-fault_injection.  process_results.py is an internal module which 
+fault injection.  process_results.py is an internal module which 
 processes the results and creates a sqlite3 database with important 
 information from the simulations.
 
@@ -63,6 +63,7 @@ The syntax is as follows:
 		benchmark_name: name of benchmark to run
 		fault_type: region to inject faults in (mem, reg, or ams)
 		num_faults: number of faults to inject
+		num_cu: number of compute units, max is 19
 		ssh_port: default is 22
 	
 --status 

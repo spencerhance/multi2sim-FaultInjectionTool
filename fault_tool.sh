@@ -16,6 +16,7 @@ function syntax()
 			        benchmark_name: name of benchmark to run
 			        fault_type: region to inject faults in (mem, reg, or ams)
 			        num_faults: number of faults to inject
+				num_cu: number of compute units, max is 19
 			        ssh_port: default is 22
 	
 			--status
@@ -330,6 +331,11 @@ case "$option" in
 
 	--status)
 
+                if ! [ -s var.tmp ];
+                  then
+                      echo "No remaining jobs"
+                fi
+
 		while read line; do
 			temp+=($line)
 		done < var.tmp
@@ -367,6 +373,7 @@ case "$option" in
 					rm var.tmp-e
 				fi
 			fi
+                        
 		done
 
 
