@@ -1,0 +1,13 @@
+AUTHORS
+_______________________________________________________________________
+Trevor Gale
+gale.t@husky.neu.edu
+http://www1.coe.neu.edu/~tgale/
+_______________________________________________________________________
+Spencer Hance
+hance.s@husky.neu.edu
+http://www1.coe.neu.edu/~shance/
+_______________________________________________________________________
+Fritz Previlon
+previlon@ece.neu.edu
+http://www1.coe.neu.edu/~fgeraldp/

@@ -1,35 +1,7 @@
-***********************************************************************
-_______________________________________________________________________ 
-  ______          _ _     _____       _           _   _             
- |  ____|        | | |   |_   _|     (_)         | | (_)            
- | |__ __ _ _   _| | |_    | |  _ __  _  ___  ___| |_ _  ___  _ __  
- |  __/ _` | | | | | __|   | | | '_ \| |/ _ \/ __| __| |/ _ \| '_ \ 
- | | | (_| | |_| | | |_   _| |_| | | | |  __/ (__| |_| | (_) | | | |
- |_|__\__,_|\__,_|_|\__| |_____|_| |_| |\___|\___|\__|_|\___/|_| |_|
- |__   __|        | |               _/ |                            
-    | | ___   ___ | |              |__/                             
-    | |/ _ \ / _ \| |                                               
-    | | (_) | (_) | |                                               
-    |_|\___/ \___/|_|
-_______________________________________________________________________
+# m2s Fault Injection Tool
 
-AUTHORS
-_______________________________________________________________________
-Trevor Gale
-gale.t@husky.neu.edu
-http://www1.coe.neu.edu/~tgale/
-_______________________________________________________________________
-Spencer Hance
-hance.s@husky.neu.edu
-http://www1.coe.neu.edu/~shance/
-_______________________________________________________________________
-Fritz Previlon
-previlon@ece.neu.edu
-http://www1.coe.neu.edu/~fgeraldp/
-_______________________________________________________________________
+##Introduction
 
-Introduction:
-*******************************
 This fault injection tool is meant to be used as a tool to launch
 massive Multi2Sim fault injection simulations on a cluster.  Multi2Sim 
 is a heterogenous system simulator available at 
@@ -37,9 +9,8 @@ https://www.multi2sim.org. The tool is currently working with
 multi2sim-4.2 Evergreen architecture and SLURM as the cluster 
 management tool.
 
+##Modules
 
-Modules:
-*******************************
 The uncompressed folder includes 3 files, fault_tool.sh, 
 process_results.py, and fault_gen.py.  The fault_tool bash script is
 the central script where everything is launched. fault_gen.py is an
@@ -48,13 +19,12 @@ fault injection.  process_results.py is an internal module which
 processes the results and creates a sqlite3 database with important 
 information from the simulations.
 
+##Usage
 
-Usage:
-*******************************
 To run the tool, the fault_tool.sh bash script must be run from the 
 command line
 The syntax is as follows:
-
+'
 --sim <ssh_server> <benchmark_name> <fault_type> <num_faults> <num_cu> <ssh_port>
 	runs simulation of benchmark_name with num_faults injected 
 	into memory region fault_type
@@ -65,9 +35,10 @@ The syntax is as follows:
 		num_faults: number of faults to inject
 		num_cu: number of compute units, max is 19
 		ssh_port (OPTIONAL): default is 22
-	
+
 --status 
 	returns status of running simulations
+'
         	
 In order to launch the simulations, the --sim command must be used
 with its requisite input.  All inputs are required except the port
@@ -83,8 +54,8 @@ back to the cwd on your local machine.  Additionally, it will delete all
 temporary files created for that simulation from the cluster.
 
 
-Results:
-*******************************
+##Results
+
 Once you have recieved the results, you will have a copy
 of the results directory as well as a compressed results folder on
 your local machine.  The results folder, once extracted, contains
@@ -98,25 +69,25 @@ be named with following convention: <job_id>_<benchmark_name>.db
 To view your results database on your machine, navigate to the 
 fault_injection_tool folder in terminal and run this command:
 
-$ sqlite3 <path_to_database> -column
+'$ sqlite3 <path_to_database> -column'
 
 This will open up a sqlite3 terminal.  Then type:
 
-sqlite> .headers on
+'sqlite> .headers on'
 
 This will turn on headers to make viewing the data easier.  
 The next step is to open the table.  This is done with the 
 following command:
 
-sqlite> SELECT * FROM <table_name>;
+'sqlite> SELECT * FROM <table_name>;'
 
 The table_name will be either "MemFaults,"RegFaults," or "AmsFaults," 
 depending on the simulation you suggested.  This will display all 
 of the fault injection data in your terminal window
 
 
-Launching Multiple Simulations
-*******************************
+##Launching Multiple Simulations
+
 Launching multiple simulations is possible, however too many launches
 in a row triggers a brute force protection mechanism that can freeze
 your jobs.  The same issue can occur when using the --status flag.
@@ -124,8 +95,8 @@ We recommend launching no more than two simulation batches in a row
 and waiting 15 seconds between running the --status option.
 
 
-Dependencies:
-*******************************
+##Dependencies
+
 Cluster running SLURM
 Keyless access to cluster
 AMD OpenCl SDK 2.5 benchmarks for evergreen on the cluster
