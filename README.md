@@ -24,7 +24,8 @@ information from the simulations.
 To run the tool, the fault_tool.sh bash script must be run from the 
 command line
 The syntax is as follows:
-'
+
+```
 --sim <ssh_server> <benchmark_name> <fault_type> <num_faults> <num_cu> <ssh_port>
 	runs simulation of benchmark_name with num_faults injected 
 	into memory region fault_type
@@ -38,8 +39,9 @@ The syntax is as follows:
 
 --status 
 	returns status of running simulations
-'
-        	
+```
+
+      	
 In order to launch the simulations, the --sim command must be used
 with its requisite input.  All inputs are required except the port
 number.  If no port number is specified it will default to 22.
@@ -69,17 +71,17 @@ be named with following convention: <job_id>_<benchmark_name>.db
 To view your results database on your machine, navigate to the 
 fault_injection_tool folder in terminal and run this command:
 
-'$ sqlite3 <path_to_database> -column'
+`$ sqlite3 <path_to_database> -column`
 
 This will open up a sqlite3 terminal.  Then type:
 
-'sqlite> .headers on'
+`sqlite> .headers on`
 
 This will turn on headers to make viewing the data easier.  
 The next step is to open the table.  This is done with the 
 following command:
 
-'sqlite> SELECT * FROM <table_name>;'
+`sqlite> SELECT * FROM <table_name>;`
 
 The table_name will be either "MemFaults,"RegFaults," or "AmsFaults," 
 depending on the simulation you suggested.  This will display all 
@@ -97,21 +99,21 @@ and waiting 15 seconds between running the --status option.
 
 ##Dependencies
 
-Cluster running SLURM
-Keyless access to cluster
-AMD OpenCl SDK 2.5 benchmarks for evergreen on the cluster
-multi2sim-4.2 built on the cluster
-sqlite3 on the node
-sqlite3 on your local machine to view results
-bash 4.3.11 or newer on the cluster 
-Python 2.7 libraries
- -sys
- -os
- -re
- -sqlite3 
- -ConfigParser
- -fileinput
- -OptionParser
+* Cluster running SLURM
+* Keyless access to cluster
+* AMD OpenCl SDK 2.5 benchmarks for evergreen on the cluster
+* multi2sim-4.2 built on the cluster
+* sqlite3 on the node
+* sqlite3 on your local machine to view results
+* bash 4.3.11 or newer on the cluster 
+* Python 2.7 libraries
+  * sys
+  * os
+  * re
+  * sqlite3 
+  * ConfigParser
+  * fileinput
+  * OptionParser
 
 
 
