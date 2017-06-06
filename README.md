@@ -1,6 +1,6 @@
 # m2s Fault Injection Tool
 
-##Introduction
+## Introduction
 
 This fault injection tool is meant to be used as a tool to launch
 massive Multi2Sim fault injection simulations on a cluster.  Multi2Sim 
@@ -9,7 +9,7 @@ https://www.multi2sim.org. The tool is currently working with
 multi2sim-4.2 Evergreen architecture and SLURM as the cluster 
 management tool.
 
-##Modules
+## Modules
 
 The uncompressed folder includes 3 files, fault_tool.sh, 
 process_results.py, and fault_gen.py.  The fault_tool bash script is
@@ -19,7 +19,7 @@ fault injection.  process_results.py is an internal module which
 processes the results and creates a sqlite3 database with important 
 information from the simulations.
 
-##Usage
+## Usage
 
 To run the tool, the fault_tool.sh bash script must be run from the 
 command line
@@ -56,7 +56,7 @@ back to the cwd on your local machine.  Additionally, it will delete all
 temporary files created for that simulation from the cluster.
 
 
-##Results
+## Results
 
 Once you have recieved the results, you will have a copy
 of the results directory as well as a compressed results folder on
@@ -88,7 +88,7 @@ depending on the simulation you suggested.  This will display all
 of the fault injection data in your terminal window
 
 
-##Launching Multiple Simulations
+## Launching Multiple Simulations
 
 Launching multiple simulations is possible, however too many launches
 in a row triggers a brute force protection mechanism that can freeze
@@ -97,7 +97,7 @@ We recommend launching no more than two simulation batches in a row
 and waiting 15 seconds between running the --status option.
 
 
-##Dependencies
+## Dependencies
 
 * Cluster running SLURM
 * Keyless access to cluster
